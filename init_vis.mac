@@ -1,0 +1,5 @@
+/run/initialize
+/vis/verbose warnings
+/control/execute vis.mac
+/detector/dicladMode absorb
+/run/beamOn 1
