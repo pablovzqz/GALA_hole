@@ -45,9 +45,6 @@ void EventAction::EndOfEventAction(const G4Event* event)
     G4int nSiPMPhotons = 0;
     G4ThreeVector firstSiPMVertex(0.0, 0.0, 0.0);
     G4bool hasSiPMInteraction = false;
-    
-    // Colectar tiempos de fotones para binning temporal
-    std::vector<G4double> photonArrivalTimes;
 
     auto* hce = event->GetHCofThisEvent();
     if (hce && fSiPMHCID >= 0) {
@@ -57,12 +54,6 @@ void EventAction::EndOfEventAction(const G4Event* event)
             if (nSiPMPhotons > 0) {
                 firstSiPMVertex = (*hitsCollection)[0]->GetPosition();
                 hasSiPMInteraction = true;
-                
-                // Extraer tiempos de llegada en microsegundos
-                for (size_t i = 0; i < hitsCollection->entries(); ++i) {
-                    G4double arrivalTimeUs = (*hitsCollection)[i]->GetTime() / 1000.0;
-                    photonArrivalTimes.push_back(arrivalTimeUs);
-                }
             }
         }
     }
@@ -79,102 +70,54 @@ void EventAction::EndOfEventAction(const G4Event* event)
     constexpr G4double kGainSigmaRel = 0.12;           // 12% gain variation
     constexpr G4int kMicrocells = 4774;                // ~4774 microcells (3x3 mm)
     constexpr G4double kDarkCountRateHz = 860.0e3;    // 860 kHz dark count rate
-    constexpr G4double kBinWidthUs = 1.0;              // 1 μs por bin (en microsegundos)
-    constexpr G4int kNumBins = 400;                    // 400 bins × 1 μs = 400 μs total
-    constexpr G4double kAcquisitionWindowUs = kBinWidthUs * kNumBins;  // 400 μs
 
-    // === BINNING TEMPORAL: Agrupar fotones por bins de 1 μs ===
-    std::vector<G4int> photonsPerBin(kNumBins, 0);
-    
-    for (G4double arrivalTimeUs : photonArrivalTimes) {
-        // Determinar en qué bin cae este fotón
-        G4int binIndex = static_cast<G4int>(arrivalTimeUs / kBinWidthUs);
-        
-        // Contar solo si está dentro del rango [0, 400μs]
-        if (binIndex >= 0 && binIndex < kNumBins) {
-            photonsPerBin[binIndex]++;
-        }
-    }
+    // === SiPM PROCESSING: Aplicar modelo global a todos los fotones ===
+    const G4int primaryAvalanches = CLHEP::RandBinomial::shoot(nSiPMPhotons, kPDE);
+    const G4int primaryAfterSaturation = std::min(primaryAvalanches, kMicrocells);
 
-    // === PROCESAMIENTO SiPM POR BIN ===
-    // Para cada bin, aplicar el modelo de SiPM independientemente
-    G4int totalNPEAllBins = 0;
-    G4double totalChargeAllBins = 0.0;
-    G4int binWithMaxPhotons = -1;
-    G4int maxPhotonsInBin = 0;
-    G4double totalDarkCounts = 0.0;
+    const G4int crossTalkAvalanches = CLHEP::RandBinomial::shoot(primaryAfterSaturation, kCrossTalkProb);
+    const G4int avalancheAfterPhotonNoise = std::min(primaryAfterSaturation + crossTalkAvalanches, kMicrocells);
 
-    for (G4int bin = 0; bin < kNumBins; ++bin) {
-        G4int nPhotonsInBin = photonsPerBin[bin];
-        
-        if (nPhotonsInBin > maxPhotonsInBin) {
-            maxPhotonsInBin = nPhotonsInBin;
-            binWithMaxPhotons = bin;
-        }
+    const G4double expectedDarkCounts = kDarkCountRateHz * 1e-6;  
+    const G4int darkCounts = CLHEP::RandPoisson::shoot(expectedDarkCounts);
 
-        const G4int primaryAvalanches = CLHEP::RandBinomial::shoot(nPhotonsInBin, kPDE);
-        const G4int primaryAfterSaturation = std::min(primaryAvalanches, kMicrocells);
+    const G4int totalAvalanches = std::min(avalancheAfterPhotonNoise + darkCounts, kMicrocells);
 
-        const G4int crossTalkAvalanches = CLHEP::RandBinomial::shoot(primaryAfterSaturation, kCrossTalkProb);
-        const G4int avalancheAfterPhotonNoise = std::min(primaryAfterSaturation + crossTalkAvalanches, kMicrocells);
+    const G4double gainSigmaPE = kGainSigmaRel * std::sqrt(static_cast<G4double>(std::max(totalAvalanches, 1)));
+    G4double totalChargePE = static_cast<G4double>(totalAvalanches)
+                           + G4RandGauss::shoot(0.0, gainSigmaPE);
 
-        const G4double expectedDarkCounts = kDarkCountRateHz * (kBinWidthUs * 1.0e-6);  // Dark counts para 1 μs
-        const G4int darkCounts = CLHEP::RandPoisson::shoot(expectedDarkCounts);
-
-        const G4int totalAvalanches = std::min(avalancheAfterPhotonNoise + darkCounts, kMicrocells);
-
-        const G4double gainSigmaPE = kGainSigmaRel * std::sqrt(static_cast<G4double>(std::max(totalAvalanches, 1)));
-        G4double chargePE = static_cast<G4double>(totalAvalanches)
-                          + G4RandGauss::shoot(0.0, gainSigmaPE);
-
-        if (chargePE < 0.0) {
-            chargePE = 0.0;
-        }
-
-        totalNPEAllBins += totalAvalanches;
-        totalChargeAllBins += chargePE;
-        totalDarkCounts += darkCounts;
+    if (totalChargePE < 0.0) {
+        totalChargePE = 0.0;
     }
 
     if (fRunAction) {
         fRunAction->RecordEventSummary(
             event->GetEventID(),
             nSiPMPhotons,
-            totalDarkCounts,  
-            totalNPEAllBins,
-            totalChargeAllBins,
+            darkCounts,  
+            totalAvalanches,
+            totalChargePE,
             primaryVertex,
             hasSiPMInteraction ? &firstSiPMVertex : nullptr);
-
-        fRunAction->RecordPhotonTimes(event->GetEventID(), photonArrivalTimes);
-    }
-
-    // Contar cuántos bins tienen fotones
-    G4int binsWithPhotons = 0;
-    for (G4int i = 0; i < kNumBins; ++i) {
-        if (photonsPerBin[i] > 0) {
-            binsWithPhotons++;
-        }
     }
 
     G4cout << "Event " << event->GetEventID()
            << " | photons in SiPM = " << nSiPMPhotons
-           << " | bins with photons = " << binsWithPhotons
-           << " | max photons in bin = " << maxPhotonsInBin << " (bin " << binWithMaxPhotons << ")"
-           << " | total SiPM nPE (400μs) = " << totalNPEAllBins
-           << " | total SiPM charge(PE) (400μs) = " << totalChargeAllBins
+           << " | nPE = " << totalAvalanches
+           << " | charge(PE) = " << totalChargePE
            << " | primary vertex = ("
            << G4BestUnit(primaryVertex.x(), "Length") << ", "
            << G4BestUnit(primaryVertex.y(), "Length") << ", "
            << G4BestUnit(primaryVertex.z(), "Length") << ")";
 
     if (hasSiPMInteraction) {
-        G4cout << " | first SiPM interaction vertex = ("
+        G4cout << " | first SiPM vertex = ("
                << G4BestUnit(firstSiPMVertex.x(), "Length") << ", "
                << G4BestUnit(firstSiPMVertex.y(), "Length") << ", "
                << G4BestUnit(firstSiPMVertex.z(), "Length") << ")";
     } else {
-        G4cout << " | first SiPM interaction vertex = none";
+        G4cout << " | first SiPM vertex = none";
     }
 
     G4cout << G4endl;

@@ -26,13 +26,9 @@ public:
                             const G4ThreeVector& primaryVertex,
                             const G4ThreeVector* firstSiPMVertex);
 
-    void RecordPhotonTimes(G4int eventID,
-                          const std::vector<G4double>& photonArrivalTimes);
-
 private:
     G4long fTotalSiPMPhotons = 0;
     G4long fEventsProcessed = 0;
     G4long fEventsWithSiPMHits = 0;
     std::ofstream fOutput;
-    std::ofstream fPhotonTimesOutput;  // Archivo para tiempos de fotones
 };

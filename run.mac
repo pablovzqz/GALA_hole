@@ -2,4 +2,4 @@
 /run/verbose 1
 /detector/dicladMode absorb
 
-/run/beamOn 50000
+/run/beamOn 100000

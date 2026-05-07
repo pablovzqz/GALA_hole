@@ -12,10 +12,6 @@ void RunAction::BeginOfRunAction(const G4Run* run)
 	fEventsWithSiPMHits = 0;
 	fOutput.open("sipm_events.txt");
 	fOutput << "event_id\tphotons_in_SiPM\tdark_counts\tsipm_nPE\tsipm_charge_pe\tprimary_x\tprimary_y\tprimary_z\tfirst_sipm_x\tfirst_sipm_y\tfirst_sipm_z\n";
-	
-	// Nuevo: Archivo para tiempos de fotones
-	fPhotonTimesOutput.open("photon_times.txt");
-	fPhotonTimesOutput << "event_id\tphoton_time_us\n";
 
 	G4RunManager::GetRunManager()->SetPrintProgress(100);
 	G4cout << "### Run " << run->GetRunID() << " start" << G4endl;
@@ -62,23 +58,9 @@ void RunAction::EndOfRunAction(const G4Run* run)
 	if (fOutput.is_open()) {
 		fOutput.close();
 	}
-	if (fPhotonTimesOutput.is_open()) {
-		fPhotonTimesOutput.close();
-	}
 
 	G4cout << "### SiPM summary: total photons = " << fTotalSiPMPhotons
 	       << ", events = " << fEventsProcessed
 	       << ", events with hits = " << fEventsWithSiPMHits << G4endl;
 	G4cout << "### Run " << run->GetRunID() << " end" << G4endl;
-}
-
-void RunAction::RecordPhotonTimes(G4int eventID,
-                                  const std::vector<G4double>& photonArrivalTimes)
-{
-	if (fPhotonTimesOutput.is_open()) {
-		for (G4double time : photonArrivalTimes) {
-			// Convertir tiempo de ns a μs para mejor legibilidad
-			fPhotonTimesOutput << eventID << '\t' << (time / 1000.0) << '\n';
-		}
-	}
 }
