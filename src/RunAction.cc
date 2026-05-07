@@ -10,7 +10,7 @@ void RunAction::BeginOfRunAction(const G4Run* run)
 	fTotalSiPMPhotons = 0;
 	fEventsProcessed = 0;
 	fEventsWithSiPMHits = 0;
-	fOutput.open("sipm_events.txt");
+	fOutput.open("1e_collapsed_5mm_hole.txt");
 	fOutput << "event_id\tphotons_in_SiPM\tdark_counts\tsipm_nPE\tsipm_charge_pe\tprimary_x\tprimary_y\tprimary_z\tfirst_sipm_x\tfirst_sipm_y\tfirst_sipm_z\n";
 
 	G4RunManager::GetRunManager()->SetPrintProgress(100);
