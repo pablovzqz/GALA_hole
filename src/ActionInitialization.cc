@@ -18,7 +18,7 @@ void ActionInitialization::Build() const
 {
     auto* primary  = new PrimaryGeneratorAction();
     auto* run      = new RunAction();
-    auto* event    = new EventAction(run);
+    auto* event    = new EventAction(run, primary);
     auto* stepping = new SteppingAction(event, fDetector);
 
     new SimMessenger(primary, stepping, run);

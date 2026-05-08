@@ -41,7 +41,7 @@ void DetectorConstruction::SetDicladMode(const G4String& mode)
 
         auto* reflectMPT = new G4MaterialPropertiesTable();
         std::vector<G4double> e  = {2.0*eV, 10.0*eV};
-        std::vector<G4double> r  = {0.95, 0.95};     // 95% reflectividad
+        std::vector<G4double> r  = {0.68, 0.68};     // 95% reflectividad
         reflectMPT->AddProperty("REFLECTIVITY", e, r);
         reflectSurface->SetMaterialPropertiesTable(reflectMPT);
 
@@ -142,7 +142,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
     const G4double sipmHalfXY = (kSiPMSize / 2.0) * mm;
     const G4double sipmHalfZ = (kSiPMThickness / 2.0) * mm;
-    const G4double sipmGap = 0.5 * mm;
+    const G4double sipmGap = 0.05 * mm;
 
     fWorldPhys = worldPhys;
     SetDicladMode(fDicladMode);

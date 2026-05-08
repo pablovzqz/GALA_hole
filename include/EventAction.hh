@@ -4,12 +4,13 @@
 #include "globals.hh"
 
 class RunAction;
+class PrimaryGeneratorAction;
 class G4Event;
 
 class EventAction : public G4UserEventAction
 {
 public:
-    explicit EventAction(RunAction* runAction = nullptr);
+    explicit EventAction(RunAction* runAction = nullptr, PrimaryGeneratorAction* primaryAction = nullptr);
     ~EventAction() override = default;
 
     void BeginOfEventAction(const G4Event*) override;
@@ -17,5 +18,6 @@ public:
 
 private:
     RunAction* fRunAction = nullptr;
+    PrimaryGeneratorAction* fPrimaryAction = nullptr;
     G4int fSiPMHCID = -1;
 };

@@ -5,7 +5,7 @@
 #include "globals.hh"
 
 #include <fstream>
-#include <vector>
+#include <map>
 
 class G4Run;
 
@@ -18,17 +18,17 @@ public:
     void BeginOfRunAction(const G4Run*) override;
     void EndOfRunAction(const G4Run*) override;
 
-    void RecordEventSummary(G4int eventID,
-                            G4int nPhotons,
-                            G4int nDarkCounts,
-                            G4int nPE,
-                            G4double chargePE,
-                            const G4ThreeVector& primaryVertex,
-                            const G4ThreeVector* firstSiPMVertex);
+    void RecordGeometricHit(G4int eventID,
+                            G4int hitIndex,
+                            G4int trackID,
+                            G4double time,
+                            G4double photonEnergy,
+                            const G4ThreeVector& position,
+                            const G4ThreeVector& vertex);
+
+    void RecordGeneratedPhotons(G4int eventID, G4int nPhotons);
 
 private:
-    G4long fTotalSiPMPhotons = 0;
-    G4long fEventsProcessed = 0;
-    G4long fEventsWithSiPMHits = 0;
     std::ofstream fOutput;
+    std::map<G4int, G4int> fGeneratedPhotons;  // event_id -> nPhotons
 };

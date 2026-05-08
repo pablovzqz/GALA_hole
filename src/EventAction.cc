@@ -1,6 +1,7 @@
 #include "EventAction.hh"
 
 #include "RunAction.hh"
+#include "PrimaryGeneratorAction.hh"
 #include "SiPMSD.hh"
 
 #include "G4Event.hh"
@@ -8,17 +9,11 @@
 #include "G4SDManager.hh"
 #include "G4HCofThisEvent.hh"
 #include "G4ThreeVector.hh"
-// #include "G4SystemOfUnits.hh"  // not needed here; kept commented by request
 #include "G4UnitsTable.hh"
 #include "G4ios.hh"
-#include "Randomize.hh"
 
-#include <algorithm>
-#include <cmath>
-#include <vector>
-
-EventAction::EventAction(RunAction* runAction)
-    : fRunAction(runAction)
+EventAction::EventAction(RunAction* runAction, PrimaryGeneratorAction* primaryAction)
+    : fRunAction(runAction), fPrimaryAction(primaryAction)
 {
 }
 
@@ -42,6 +37,11 @@ void EventAction::EndOfEventAction(const G4Event* event)
         fSiPMHCID = G4SDManager::GetSDMpointer()->GetCollectionID("SiPMSD/SiPMHitsCollection");
     }
 
+    // Record generated photons for this event
+    if (fRunAction && fPrimaryAction) {
+        fRunAction->RecordGeneratedPhotons(event->GetEventID(), fPrimaryAction->GetLastEventPhotons());
+    }
+
     G4int nSiPMPhotons = 0;
     G4ThreeVector firstSiPMVertex(0.0, 0.0, 0.0);
     G4bool hasSiPMInteraction = false;
@@ -54,6 +54,20 @@ void EventAction::EndOfEventAction(const G4Event* event)
             if (nSiPMPhotons > 0) {
                 firstSiPMVertex = (*hitsCollection)[0]->GetPosition();
                 hasSiPMInteraction = true;
+
+                if (fRunAction) {
+                    for (G4int i = 0; i < nSiPMPhotons; ++i) {
+                        const auto* hit = (*hitsCollection)[i];
+                        fRunAction->RecordGeometricHit(
+                            event->GetEventID(),
+                            i,
+                            hit->GetTrackID(),
+                            hit->GetTime(),
+                            hit->GetPhotonEnergy(),
+                            hit->GetPosition(),
+                            hit->GetVertexPosition());
+                    }
+                }
             }
         }
     }
@@ -64,48 +78,8 @@ void EventAction::EndOfEventAction(const G4Event* event)
         primaryVertex = primary->GetPosition();
     }
 
-    // MICROFC-30035-SMT-TR parameters
-    constexpr G4double kPDE = 0.30;                    // 30% @ 420 nm
-    constexpr G4double kCrossTalkProb = 0.07;          // 7% crosstalk
-    constexpr G4double kGainSigmaRel = 0.12;           // 12% gain variation
-    constexpr G4int kMicrocells = 4774;                // ~4774 microcells (3x3 mm)
-    constexpr G4double kDarkCountRateHz = 860.0e3;    // 860 kHz dark count rate
-
-    // === SiPM PROCESSING: Aplicar modelo global a todos los fotones ===
-    const G4int primaryAvalanches = CLHEP::RandBinomial::shoot(nSiPMPhotons, kPDE);
-    const G4int primaryAfterSaturation = std::min(primaryAvalanches, kMicrocells);
-
-    const G4int crossTalkAvalanches = CLHEP::RandBinomial::shoot(primaryAfterSaturation, kCrossTalkProb);
-    const G4int avalancheAfterPhotonNoise = std::min(primaryAfterSaturation + crossTalkAvalanches, kMicrocells);
-
-    const G4double expectedDarkCounts = kDarkCountRateHz * 1e-6;  
-    const G4int darkCounts = CLHEP::RandPoisson::shoot(expectedDarkCounts);
-
-    const G4int totalAvalanches = std::min(avalancheAfterPhotonNoise + darkCounts, kMicrocells);
-
-    const G4double gainSigmaPE = kGainSigmaRel * std::sqrt(static_cast<G4double>(std::max(totalAvalanches, 1)));
-    G4double totalChargePE = static_cast<G4double>(totalAvalanches)
-                           + G4RandGauss::shoot(0.0, gainSigmaPE);
-
-    if (totalChargePE < 0.0) {
-        totalChargePE = 0.0;
-    }
-
-    if (fRunAction) {
-        fRunAction->RecordEventSummary(
-            event->GetEventID(),
-            nSiPMPhotons,
-            darkCounts,  
-            totalAvalanches,
-            totalChargePE,
-            primaryVertex,
-            hasSiPMInteraction ? &firstSiPMVertex : nullptr);
-    }
-
     G4cout << "Event " << event->GetEventID()
-           << " | photons in SiPM = " << nSiPMPhotons
-           << " | nPE = " << totalAvalanches
-           << " | charge(PE) = " << totalChargePE
+           << " | geometric hits in SiPM = " << nSiPMPhotons
            << " | primary vertex = ("
            << G4BestUnit(primaryVertex.x(), "Length") << ", "
            << G4BestUnit(primaryVertex.y(), "Length") << ", "

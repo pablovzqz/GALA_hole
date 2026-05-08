@@ -43,6 +43,7 @@ G4bool SiPMSD::ProcessHits(G4Step* step, G4TouchableHistory*)
     hit->SetTime(step->GetPostStepPoint()->GetGlobalTime());
     hit->SetPhotonEnergy(track->GetTotalEnergy());
     hit->SetPosition(step->GetPostStepPoint()->GetPosition());
+    hit->SetVertexPosition(track->GetVertexPosition());
     fHitsCollection->insert(hit);
 
     track->SetTrackStatus(fStopAndKill);

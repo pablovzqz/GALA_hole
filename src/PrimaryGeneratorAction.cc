@@ -26,29 +26,56 @@ PrimaryGeneratorAction::~PrimaryGeneratorAction()
     delete fParticleGun;
 }
 
+// Compute longitudinal diffusion (sigma) as a length (same units as `distance`).
+
+G4double sigmaDiffusion(G4double distance)
+{
+    G4double sigma = std::sqrt(0.0351 * distance / 0.82);
+    return sigma;
+}
+
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
 {
-    constexpr G4int nPhotonsPerEvent = 300;
     constexpr G4double holeRadius = 2.25 * mm;  // Radio del agujero (4.5 mm diámetro)
+    constexpr G4double driftVelocity = 0.82 * mm / us ;
 
     fParticleGun->SetParticleDefinition(G4OpticalPhoton::OpticalPhotonDefinition());
     fParticleGun->SetParticleEnergy(fEnergy);
 
-    // Generar UN ÚNICO punto de origen aleatorio en el círculo ZX
-    // r va de 0 a holeRadius (distribución uniforme en área)
-    // θ va de 0 a 2π (ángulo azimutal en plano ZX)
-    const G4double r = holeRadius * std::sqrt(G4UniformRand());
-    const G4double theta = 2.0 * CLHEP::pi * G4UniformRand();
+    const G4double vertexDistance = 1 * cm;
+
+    G4double longitudinalDiffusion = sigmaDiffusion(vertexDistance);
+    const G4double meanEmissionTime = vertexDistance / driftVelocity;
+    const G4double emissionTimeSigma = longitudinalDiffusion / driftVelocity;
+
+    const G4double r = holeRadius * G4UniformRand(); //* std::sqrt(G4UniformRand()); //
+    const G4double theta = 2.0 * CLHEP::pi * G4UniformRand();;
     
     const G4double xPos = r * std::cos(theta);
     const G4double yPos = r * std::sin(theta);
-    const G4double zPos = 0.0 * mm;  // Altura fija
 
-    G4ThreeVector sourcePosition(0, 0, zPos);
+    G4double photons = 169 * (1 + -0.07 * r + 0.24 * r * r - 0.169 * r * r * r + 0.049 * r * r * r * r);
+
+    const G4double meanPhotons = 1886.0 * photons * 0.68;
+    const G4double sigmaPhotons = std::sqrt(std::max(0.0, fFanoFactor * meanPhotons));
+    G4double nPhotonsPerEvent = std::lround(G4RandGauss::shoot(meanPhotons, sigmaPhotons));
+    if (nPhotonsPerEvent < 0.0) {
+        nPhotonsPerEvent = 0.0;
+    }
+
+    const G4double zCenter = 0.0 * mm; 
+    G4ThreeVector sourcePosition(xPos, yPos, zCenter);
     fParticleGun->SetParticlePosition(sourcePosition);
+
+    // Guardar el número de fotones para este evento
+    fLastEventPhotons = (G4int)nPhotonsPerEvent;
 
     // Todos los fotones salen del mismo punto con direcciones isótropas
     for (G4int photonIndex = 0; photonIndex < nPhotonsPerEvent; ++photonIndex) {
+        
+        G4double emitTime = G4RandGauss::shoot(meanEmissionTime, emissionTimeSigma);
+        fParticleGun->SetParticleTime(emitTime);
+
         const G4double cosTheta = 2.0 * G4UniformRand() - 1.0;
         const G4double sinTheta = std::sqrt(1.0 - cosTheta * cosTheta);
         const G4double phi = 2.0 * CLHEP::pi * G4UniformRand();

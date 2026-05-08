@@ -7,50 +7,37 @@
 
 void RunAction::BeginOfRunAction(const G4Run* run)
 {
-	fTotalSiPMPhotons = 0;
-	fEventsProcessed = 0;
-	fEventsWithSiPMHits = 0;
-	fOutput.open("1e_collapsed_5mm_hole.txt");
-	fOutput << "event_id\tphotons_in_SiPM\tdark_counts\tsipm_nPE\tsipm_charge_pe\tprimary_x\tprimary_y\tprimary_z\tfirst_sipm_x\tfirst_sipm_y\tfirst_sipm_z\n";
+	fOutput.open("geometric_hits_absorbentGALA_newPITCH.txt");
+	fOutput << "event_id\ttime_ns\tvx_mm\tvy_mm\tvz_mm\tnPhotons\n";
 
 	G4RunManager::GetRunManager()->SetPrintProgress(100);
 	G4cout << "### Run " << run->GetRunID() << " start" << G4endl;
 }
 
-void RunAction::RecordEventSummary(G4int eventID,
-                                   G4int nPhotons,
-							   G4int nDarkCounts,
-								   G4int nPE,
-								   G4double chargePE,
-                                   const G4ThreeVector& primaryVertex,
-                                   const G4ThreeVector* firstSiPMVertex)
+void RunAction::RecordGeometricHit(G4int eventID,
+                                   G4int hitIndex,
+                                   G4int trackID,
+                                   G4double time,
+                                   G4double photonEnergy,
+                                   const G4ThreeVector& position,
+                                   const G4ThreeVector& vertex)
 {
-	++fEventsProcessed;
-	fTotalSiPMPhotons += nPhotons;
-	if (nPhotons > 0) {
-		++fEventsWithSiPMHits;
-	}
-
 	if (fOutput.is_open()) {
+		G4int nPhotons = fGeneratedPhotons[eventID];
 		fOutput << eventID << '\t'
-		        << nPhotons << '\t'
-		        << nDarkCounts << '\t'
-		        << nPE << '\t'
-		        << chargePE << '\t'
-		        << primaryVertex.x() / mm << '\t'
-		        << primaryVertex.y() / mm << '\t'
-		        << primaryVertex.z() / mm << '\t';
-
-		if (firstSiPMVertex) {
-			fOutput << firstSiPMVertex->x() / mm << '\t'
-			        << firstSiPMVertex->y() / mm << '\t'
-			        << firstSiPMVertex->z() / mm;
-		} else {
-			fOutput << "none\tnone\tnone";
-		}
+		        << time / ns << '\t'
+		        << vertex.x() / mm << '\t'
+		        << vertex.y() / mm << '\t'
+		        << vertex.z() / mm << '\t'
+		        << nPhotons;
 
 		fOutput << '\n';
 	}
+}
+
+void RunAction::RecordGeneratedPhotons(G4int eventID, G4int nPhotons)
+{
+	fGeneratedPhotons[eventID] = nPhotons;
 }
 
 void RunAction::EndOfRunAction(const G4Run* run)
@@ -59,8 +46,5 @@ void RunAction::EndOfRunAction(const G4Run* run)
 		fOutput.close();
 	}
 
-	G4cout << "### SiPM summary: total photons = " << fTotalSiPMPhotons
-	       << ", events = " << fEventsProcessed
-	       << ", events with hits = " << fEventsWithSiPMHits << G4endl;
 	G4cout << "### Run " << run->GetRunID() << " end" << G4endl;
 }

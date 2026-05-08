@@ -23,17 +23,20 @@ public:
     void operator delete(void* hit);
 
     void SetPosition(const G4ThreeVector& position) { fPosition = position; }
+    void SetVertexPosition(const G4ThreeVector& vertex) { fVertexPosition = vertex; }
     void SetTime(G4double time) { fTime = time; }
     void SetPhotonEnergy(G4double energy) { fPhotonEnergy = energy; }
     void SetTrackID(G4int trackID) { fTrackID = trackID; }
 
     const G4ThreeVector& GetPosition() const { return fPosition; }
+    const G4ThreeVector& GetVertexPosition() const { return fVertexPosition; }
     G4double GetTime() const { return fTime; }
     G4double GetPhotonEnergy() const { return fPhotonEnergy; }
     G4int GetTrackID() const { return fTrackID; }
 
 private:
     G4ThreeVector fPosition;
+    G4ThreeVector fVertexPosition;
     G4double fTime = 0.0;
     G4double fPhotonEnergy = 0.0;
     G4int fTrackID = -1;
