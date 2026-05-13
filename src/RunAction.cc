@@ -7,7 +7,7 @@
 
 void RunAction::BeginOfRunAction(const G4Run* run)
 {
-	fOutput.open("geometric_hits_absorbentGALA_newPITCH.txt");
+	fOutput.open("geometric_hits_absorbentGALA_newPITCH_alternative.txt");
 	fOutput << "event_id\ttime_ns\tvx_mm\tvy_mm\tvz_mm\tnPhotons\n";
 
 	G4RunManager::GetRunManager()->SetPrintProgress(100);

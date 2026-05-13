@@ -48,20 +48,25 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
     const G4double meanEmissionTime = vertexDistance / driftVelocity;
     const G4double emissionTimeSigma = longitudinalDiffusion / driftVelocity;
 
-    const G4double r = holeRadius * G4UniformRand(); //* std::sqrt(G4UniformRand()); //
-    const G4double theta = 2.0 * CLHEP::pi * G4UniformRand();;
-    
-    const G4double xPos = r * std::cos(theta);
-    const G4double yPos = r * std::sin(theta);
+    // Gaussiana 2D centrada en el centro del agujero
+    G4double sigmaR = 0.4 * mm;
+    G4double x, y, r;
+    do {
+        x = G4RandGauss::shoot(0.0, sigmaR);
+        y = G4RandGauss::shoot(0.0, sigmaR);
+        r = std::sqrt(x*x + y*y);
+    } while (r > holeRadius); // rechaza los que salen del agujero
 
-    G4double photons = 169 * (1 + -0.07 * r + 0.24 * r * r - 0.169 * r * r * r + 0.049 * r * r * r * r);
+    const G4double xPos = x;
+    const G4double yPos = y;
 
-    const G4double meanPhotons = 1886.0 * photons * 0.68;
-    const G4double sigmaPhotons = std::sqrt(std::max(0.0, fFanoFactor * meanPhotons));
-    G4double nPhotonsPerEvent = std::lround(G4RandGauss::shoot(meanPhotons, sigmaPhotons));
-    if (nPhotonsPerEvent < 0.0) {
-        nPhotonsPerEvent = 0.0;
-    }
+    G4double electrons = 1886.0;
+    G4double photons = 169;
+    G4double sigma = std::sqrt(std::max(0.0, fFanoFactor * electrons));
+    G4double nElectrons = G4RandGauss::shoot(electrons, sigma);
+
+    const G4double meanPhotons = nElectrons * photons * 0.68;
+    G4double nPhotonsPerEvent = CLHEP::RandPoisson::shoot(meanPhotons);
 
     const G4double zCenter = 0.0 * mm; 
     G4ThreeVector sourcePosition(xPos, yPos, zCenter);
@@ -74,6 +79,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
     for (G4int photonIndex = 0; photonIndex < nPhotonsPerEvent; ++photonIndex) {
         
         G4double emitTime = G4RandGauss::shoot(meanEmissionTime, emissionTimeSigma);
+        emitTime = std::max(0.0, emitTime);
         fParticleGun->SetParticleTime(emitTime);
 
         const G4double cosTheta = 2.0 * G4UniformRand() - 1.0;
