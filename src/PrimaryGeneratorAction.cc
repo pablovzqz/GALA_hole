@@ -49,7 +49,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
     const G4double emissionTimeSigma = longitudinalDiffusion / driftVelocity;
 
     // Gaussiana 2D centrada en el centro del agujero
-    G4double sigmaR = 0.4 * mm;
+    G4double sigmaR = 0.8 * mm;
     G4double x, y, r;
     do {
         x = G4RandGauss::shoot(0.0, sigmaR);
@@ -68,15 +68,29 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
     const G4double meanPhotons = nElectrons * photons * 0.68;
     G4double nPhotonsPerEvent = CLHEP::RandPoisson::shoot(meanPhotons);
 
-    const G4double zCenter = 0.0 * mm; 
-    G4ThreeVector sourcePosition(xPos, yPos, zCenter);
-    fParticleGun->SetParticlePosition(sourcePosition);
+    constexpr G4double A_fit      = 304.19212933;
+    constexpr G4double lambda_fit = 0.00119;
+    constexpr G4double n_fit      = 4.96810781;
+    constexpr G4double z_min      = -2.5  * mm;
+    constexpr G4double z_max      = 2.5  * mm;
 
     // Guardar el número de fotones para este evento
     fLastEventPhotons = (G4int)nPhotonsPerEvent;
 
-    // Todos los fotones salen del mismo punto con direcciones isótropas
+    // Cada fotón se emite con su propio z según la distribución asimétrica con shift
+    constexpr G4double integral_unnormalized = 1080.687;
+    const G4double f_max = A_fit / integral_unnormalized;
+
     for (G4int photonIndex = 0; photonIndex < nPhotonsPerEvent; ++photonIndex) {
+        G4double zPos;
+        G4double fz;
+        do {
+            zPos = z_min + G4UniformRand() * (z_max - z_min);
+            fz = A_fit * std::exp(-lambda_fit * std::pow(zPos - z_min, n_fit)) / integral_unnormalized;
+        } while (G4UniformRand() > fz / f_max);
+
+        G4ThreeVector sourcePosition(xPos, yPos, zPos);
+        fParticleGun->SetParticlePosition(sourcePosition);
         
         G4double emitTime = G4RandGauss::shoot(meanEmissionTime, emissionTimeSigma);
         emitTime = std::max(0.0, emitTime);

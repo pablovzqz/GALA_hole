@@ -25,3 +25,28 @@ plt.title('Light Production Fluctuation')
 plt.legend()
 plt.grid(True, alpha=0.3, linestyle = '--')
 plt.show()
+
+y_long = np.array([350, 298, 298, 310, 299, 293, 279, 271, 248, 273, 256, 214, 193,
+       178, 157, 100,  83,  41,  17,  12])
+
+x_long = np.array([0.0701597 , 0.09198089, 0.11380209, 0.13562328, 0.15744448,
+       0.17926567, 0.20108687, 0.22290806, 0.24472926, 0.26655045,
+       0.28837165, 0.31019284, 0.33201404, 0.35383523, 0.37565643,
+       0.39747762, 0.41929882, 0.44112001, 0.46294121, 0.4847624 ]) * 10
+
+def exp_potencia(X, A, lambdaa, n):
+    return A * np.exp(-lambdaa * X**n)
+
+popt_long, pcov_long = curve_fit(exp_potencia, x_long, y_long, p0=(300, 1, 4))
+    
+plt.figure()
+plt.plot(x_long, y_long, marker = 'o', linestyle = 'None', label = 'Theoretical points', color = 'black')
+plt.plot(x_long, exp_potencia(x_long, *popt_long), label = 'Fitted curve', color = 'red')
+plt.xlabel('Radial distance to center [mm]')
+plt.ylabel('Normalized light production')
+plt.title('Light Production Fluctuation')
+plt.legend()
+plt.grid(True, alpha=0.3, linestyle = '--')
+plt.show()
+
+print(popt_long)

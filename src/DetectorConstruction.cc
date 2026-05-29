@@ -29,38 +29,58 @@ void DetectorConstruction::SetDicladMode(const G4String& mode)
     fDicladMode = mode;
 
     if (mode == "reflect") {
-        // Superficie reflectante en las PAREDES INTERNAS del agujero (DICLAD-Xenon interface)
-        // DICLAD actúa como un espejo metálico que refleja fotones ópticos
-        SetOpaqueOpticalProperties(fDicladMat, 1.0 * nm);
 
-        // Usar dielectric_metal para reflexión real
+        // ── Propiedades del bulk del DICLAD (PTFE-like) ──────────
+        // Necesario para que Geant4 no mate los fotones en la interfaz
+        auto* dicladMPT = new G4MaterialPropertiesTable();
+        std::vector<G4double> energies = {
+            6.0*eV,   
+            7.08*eV, 
+            10.0*eV
+        };
+        std::vector<G4double> rindex_diclad  = {1.41, 1.41, 1.41};
+        std::vector<G4double> abslen_diclad  = {0.1*mm, 0.1*mm, 0.1*mm};
+
+        dicladMPT->AddProperty("RINDEX",    energies, rindex_diclad);
+        dicladMPT->AddProperty("ABSLENGTH", energies, abslen_diclad);
+        fDicladMat->SetMaterialPropertiesTable(dicladMPT);
+
+        // ── Superficie óptica ─────────────────────────────────────
         auto* reflectSurface = new G4OpticalSurface("DICLADReflectiveSurface");
-        reflectSurface->SetType(dielectric_metal);  // Refleja como un metal
-        reflectSurface->SetFinish(polished);         // Reflexión especular pura
-        reflectSurface->SetModel(glisur);            // Modelo de reflexión
+
+        reflectSurface->SetType(dielectric_metal);
+        reflectSurface->SetFinish(ground);
+        reflectSurface->SetModel(unified);
+        reflectSurface->SetSigmaAlpha(0.1);  
 
         auto* reflectMPT = new G4MaterialPropertiesTable();
-        std::vector<G4double> e  = {2.0*eV, 10.0*eV};
-        std::vector<G4double> r  = {0.68, 0.68};     // 95% reflectividad
-        reflectMPT->AddProperty("REFLECTIVITY", e, r);
+        std::vector<G4double> reflectivity = {0.68, 0.68, 0.68};
+        reflectMPT->AddProperty("REFLECTIVITY", energies, reflectivity, true);
+
+        // Distribución angular mixta — basada en Silva et al. 2010
+        // spike + lobe + backscatter + diffuse = 1.0  (Geant4 normaliza el resto a diffuse)
+        reflectMPT->AddConstProperty("SPECULARSPIKECONSTANT", 0.0,  true); 
+        reflectMPT->AddConstProperty("SPECULARLOBECONSTANT",  0.1,  true); 
+        reflectMPT->AddConstProperty("BACKSCATTERCONSTANT",   0.0,  true);
         reflectSurface->SetMaterialPropertiesTable(reflectMPT);
 
-        // Crear superficie entre TPC (Xenon) y DICLAD - fotones viajan del Xenon al DICLAD
         if (fTpcPhys && fDicladPhys) {
-            new G4LogicalBorderSurface("Xenon_DICLAD_Reflect", fTpcPhys, fDicladPhys, reflectSurface);
+            new G4LogicalBorderSurface(
+                "Xenon_DICLAD_Reflect",
+                fTpcPhys,      
+                fDicladPhys,   
+                reflectSurface
+            );
         }
 
-        G4cout << "[Detector] DICLAD mode: REFLECTIVE (95% metal-like mirror)" << G4endl;
+        G4cout << "[Detector] DICLAD mode: REFLECTIVE (PTFE VUV, R=0.68)" << G4endl;
 
     } else {
-        // Modo original: absorción
-        SetOpaqueOpticalProperties(fDicladMat, 1.0 * nm);
+        SetOpaqueOpticalProperties(fDicladMat, 1.0*nm);
         G4LogicalBorderSurface::CleanSurfaceTable();
-
-        G4cout << "[Detector] DICLAD mode: ABSORBING (original)" << G4endl;
+        G4cout << "[Detector] DICLAD mode: ABSORBING" << G4endl;
     }
 }
-
 void DetectorConstruction::DefineMaterials()
 {
     G4NistManager* nist = G4NistManager::Instance();
