@@ -62,6 +62,7 @@ void DetectorConstruction::SetDicladMode(const G4String& mode)
         reflectMPT->AddConstProperty("SPECULARSPIKECONSTANT", 0.0,  true); 
         reflectMPT->AddConstProperty("SPECULARLOBECONSTANT",  0.1,  true); 
         reflectMPT->AddConstProperty("BACKSCATTERCONSTANT",   0.0,  true);
+        reflectMPT->AddConstProperty("DIFFUSELOBECONSTANT",  0.9,  true);
         reflectSurface->SetMaterialPropertiesTable(reflectMPT);
 
         if (fTpcPhys && fDicladPhys) {
@@ -126,7 +127,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     DefineMaterials();
 
     // ─── World ───────────────────────────────────────────────────
-    G4double worldSize = 600.0*mm;
+    G4double worldSize = 600.0*m;
     auto* worldSolid = new G4Box("World", worldSize/2, worldSize/2, worldSize/2);
     auto* worldLogic = new G4LogicalVolume(worldSolid, fVacuum, "World");
     auto* worldPhys  = new G4PVPlacement(nullptr, {}, worldLogic, "World", nullptr, false, 0);

@@ -37,7 +37,7 @@ G4double sigmaDiffusion(G4double distance)
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
 {
     constexpr G4double holeRadius = 2.25 * mm;  // Radio del agujero (4.5 mm diámetro)
-    constexpr G4double driftVelocity = 0.82 * mm / us ;
+    constexpr G4double driftVelocity = 0.82 * mm / us;
 
     fParticleGun->SetParticleDefinition(G4OpticalPhoton::OpticalPhotonDefinition());
     fParticleGun->SetParticleEnergy(fEnergy);
@@ -60,13 +60,15 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
     const G4double xPos = x;
     const G4double yPos = y;
 
-    G4double electrons = 1886.0;
+    G4double electrons = 41500 / 22.1;
     G4double photons = 169;
     G4double sigma = std::sqrt(std::max(0.0, fFanoFactor * electrons));
     G4double nElectrons = G4RandGauss::shoot(electrons, sigma);
 
-    const G4double meanPhotons = nElectrons * photons * 0.68;
+    const G4double meanPhotons = nElectrons * photons;
     G4double nPhotonsPerEvent = CLHEP::RandPoisson::shoot(meanPhotons);
+    // G4double nPhotonsPerEvent = 1;
+
 
     constexpr G4double A_fit      = 304.19212933;
     constexpr G4double lambda_fit = 0.00119;
@@ -104,7 +106,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
             sinTheta * std::cos(phi),
             sinTheta * std::sin(phi),
             cosTheta);
-
+        
         G4ThreeVector refAxis(0.0, 0.0, 1.0);
         if (std::abs(direction.z()) > 0.99) {
             refAxis = G4ThreeVector(0.0, 1.0, 0.0);
