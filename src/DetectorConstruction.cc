@@ -27,58 +27,104 @@ DetectorConstruction::~DetectorConstruction() {
 void DetectorConstruction::SetDicladMode(const G4String& mode)
 {
     fDicladMode = mode;
+    G4LogicalBorderSurface::CleanSurfaceTable();
 
     if (mode == "reflect") {
 
-        // ── Propiedades del bulk del DICLAD (PTFE-like) ──────────
-        // Necesario para que Geant4 no mate los fotones en la interfaz
+        // ── Substrato DICLAD opaco ───────────────────────────────
         auto* dicladMPT = new G4MaterialPropertiesTable();
         std::vector<G4double> energies = {
-            6.0*eV,   
-            7.08*eV, 
+            6.0*eV,
+            7.08*eV,
             10.0*eV
         };
         std::vector<G4double> rindex_diclad  = {1.41, 1.41, 1.41};
         std::vector<G4double> abslen_diclad  = {0.1*mm, 0.1*mm, 0.1*mm};
 
-        dicladMPT->AddProperty("RINDEX",    energies, rindex_diclad);
-        dicladMPT->AddProperty("ABSLENGTH", energies, abslen_diclad);
-        fDicladMat->SetMaterialPropertiesTable(dicladMPT);
 
-        // ── Superficie óptica ─────────────────────────────────────
+        // ── Superficie óptica difusa del teflon ─────────────────
         auto* reflectSurface = new G4OpticalSurface("DICLADReflectiveSurface");
-
-        reflectSurface->SetType(dielectric_metal);
+        reflectSurface->SetType(dielectric_dielectric);
         reflectSurface->SetFinish(ground);
         reflectSurface->SetModel(unified);
-        reflectSurface->SetSigmaAlpha(0.1);  
+        reflectSurface->SetSigmaAlpha(0.01);
 
         auto* reflectMPT = new G4MaterialPropertiesTable();
         std::vector<G4double> reflectivity = {0.68, 0.68, 0.68};
         reflectMPT->AddProperty("REFLECTIVITY", energies, reflectivity, true);
-
-        // Distribución angular mixta — basada en Silva et al. 2010
-        // spike + lobe + backscatter + diffuse = 1.0  (Geant4 normaliza el resto a diffuse)
-        reflectMPT->AddConstProperty("SPECULARSPIKECONSTANT", 0.0,  true); 
-        reflectMPT->AddConstProperty("SPECULARLOBECONSTANT",  0.1,  true); 
+        reflectMPT->AddConstProperty("SPECULARSPIKECONSTANT", 0.0,  true);
+        reflectMPT->AddConstProperty("SPECULARLOBECONSTANT",  0.0,  true);
         reflectMPT->AddConstProperty("BACKSCATTERCONSTANT",   0.0,  true);
-        reflectMPT->AddConstProperty("DIFFUSELOBECONSTANT",  0.9,  true);
+        reflectMPT->AddConstProperty("DIFFUSELOBECONSTANT",   1.0,  true);
+        reflectMPT->AddProperty("RINDEX",    energies, rindex_diclad);
+        reflectMPT->AddProperty("ABSLENGTH", energies, abslen_diclad);
         reflectSurface->SetMaterialPropertiesTable(reflectMPT);
 
         if (fTpcPhys && fDicladPhys) {
             new G4LogicalBorderSurface(
                 "Xenon_DICLAD_Reflect",
-                fTpcPhys,      
-                fDicladPhys,   
+                fTpcPhys,
+                fDicladPhys,
+                reflectSurface
+            );
+            new G4LogicalBorderSurface(
+                "DICLAD_Xenon_Reflect",
+                fDicladPhys,
+                fTpcPhys,
                 reflectSurface
             );
         }
 
-        G4cout << "[Detector] DICLAD mode: REFLECTIVE (PTFE VUV, R=0.68)" << G4endl;
+        G4cout << "[Detector] DICLAD mode: REFLECTIVE (Lambertian teflon, R=0.68)" << G4endl;
+
+    } else if (mode == "TPB" || mode == "tpb") {
+
+        auto* tpbSurface = new G4OpticalSurface("TPBReflectiveSurface");
+        tpbSurface->SetType(dielectric_dielectric);
+        tpbSurface->SetFinish(ground);
+        tpbSurface->SetModel(unified);
+        tpbSurface->SetSigmaAlpha(0.01);
+
+        auto* tpbSurfaceMPT = new G4MaterialPropertiesTable();
+        std::vector<G4double> energies = {
+            6.0*eV,
+            7.08*eV,
+            10.0*eV
+        };
+
+        std::vector<G4double> reflectivity = {0.99, 0.99, 0.99};
+        std::vector<G4double> rindex_diclad  = {1.41, 1.41, 1.41};
+        std::vector<G4double> abslen_diclad  = {0.1*mm, 0.1*mm, 0.1*mm};
+
+        tpbSurfaceMPT->AddProperty("RINDEX",    energies, rindex_diclad);
+        tpbSurfaceMPT->AddProperty("ABSLENGTH", energies, abslen_diclad);
+
+        tpbSurfaceMPT->AddProperty("REFLECTIVITY", energies, reflectivity, true);
+        tpbSurfaceMPT->AddConstProperty("SPECULARSPIKECONSTANT", 0.0, true);
+        tpbSurfaceMPT->AddConstProperty("SPECULARLOBECONSTANT",  0.0, true);
+        tpbSurfaceMPT->AddConstProperty("BACKSCATTERCONSTANT",    0.0, true);
+        tpbSurfaceMPT->AddConstProperty("DIFFUSELOBECONSTANT",    1.0, true);
+        tpbSurface->SetMaterialPropertiesTable(tpbSurfaceMPT);
+
+        if (fTpbPhys && fDicladPhys) {
+            new G4LogicalBorderSurface(
+                "TPB_DICLAD_Reflect",
+                fTpbPhys,
+                fDicladPhys,
+                tpbSurface
+            );
+            new G4LogicalBorderSurface(
+                "DICLAD_TPB_Reflect",
+                fDicladPhys,
+                fTpbPhys,
+                tpbSurface
+            );
+        }
+
+        G4cout << "[Detector] DICLAD mode: TPB coating (WLS in TPB + Lambertian reflectivity at TPB-DICLAD interface)" << G4endl;
 
     } else {
         SetOpaqueOpticalProperties(fDicladMat, 1.0*nm);
-        G4LogicalBorderSurface::CleanSurfaceTable();
         G4cout << "[Detector] DICLAD mode: ABSORBING" << G4endl;
     }
 }
@@ -114,10 +160,41 @@ void DetectorConstruction::DefineMaterials()
     // Vacuum / world
     fVacuum = nist->FindOrBuildMaterial("G4_Galactic");
 
+    auto* tpb = new G4Material("TPB", 1.2 * g/cm3, 2, kStateSolid);
+    tpb->AddElement(C, 28);
+    tpb->AddElement(H, 22);
+    fTpbMat = tpb;
+
     // Optical properties: hole gas propagates photons, materials absorb them.
     SetOpaqueOpticalProperties(fXenonGas, 1000.0 * m);
     SetOpaqueOpticalProperties(fVacuum,    1000.0 * m);
     SetOpaqueOpticalProperties(fSiPMMat,   1.0 * nm);
+
+    auto* tpbMPT = new G4MaterialPropertiesTable();
+    std::vector<G4double> rindexEnergies = {
+        2.0*eV,
+        2.4*eV,
+        2.7*eV,
+        2.9*eV,
+        3.1*eV,
+        3.4*eV,
+        6.0*eV,
+        7.08*eV,
+        10.0*eV
+    };
+    std::vector<G4double> rindex_tpb = {1.67, 1.67, 1.67, 1.67, 1.67, 1.67, 1.67, 1.67, 1.67};
+    std::vector<G4double> abslen_tpb = {100.0*m, 100.0*m, 100.0*m, 100.0*m, 100.0*m, 100.0*m, 5.0*nm, 5.0*nm, 5.0*nm};
+    std::vector<G4double> wlsAbslen_tpb = {5.0*nm, 5.0*nm, 5.0*nm};
+    std::vector<G4double> wlsAbslenEnergy = {6.0*eV, 7.08*eV, 10.0*eV};
+    std::vector<G4double> wlsEmissionEnergy = {2.4*eV, 2.7*eV, 2.9*eV, 3.05*eV, 3.2*eV, 3.4*eV};
+    std::vector<G4double> wlsEmission = {0.0, 0.15, 0.65, 1.0, 0.55, 0.1};
+    tpbMPT->AddProperty("RINDEX", rindexEnergies, rindex_tpb);
+    tpbMPT->AddProperty("ABSLENGTH", rindexEnergies, abslen_tpb);
+    tpbMPT->AddProperty("WLSABSLENGTH", wlsAbslenEnergy, wlsAbslen_tpb);
+    tpbMPT->AddProperty("WLSCOMPONENT", wlsEmissionEnergy, wlsEmission);
+    tpbMPT->AddConstProperty("WLSMEANNUMBERPHOTONS", 1.0);
+    tpbMPT->AddConstProperty("WLSTIMECONSTANT", 1.68 * ns);
+    fTpbMat->SetMaterialPropertiesTable(tpbMPT);
 
     //
 }
@@ -138,6 +215,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     G4double rInner = 0;
     G4double rOuter = kHoleDiameter * mm;
     G4double halfH  = kGALAThickness / 2.0 * mm;
+    const G4double tpbThickness = kTpbThickness * um;
+    const G4double tpbInnerRadius = rOuter / 2.0 - tpbThickness;
 
     const G4double dicladOuterXY = 20.0 * mm;
     auto* dicladBox = new G4Box("DICLADBox", dicladOuterXY / 2.0, dicladOuterXY / 2.0, halfH);
@@ -152,7 +231,11 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     dicladVis->SetForceSolid(true);
     dicladLogic->SetVisAttributes(dicladVis);
 
-    auto* tpcSolid  = new G4Tubs("TPC", rInner, rOuter/2, halfH, 0, 360*deg);
+    const G4bool hasCoating = (fDicladMode == "TPB" || fDicladMode == "tpb");
+    const G4double tpcRadius = hasCoating
+        ? tpbInnerRadius
+        : rOuter / 2.0;
+    auto* tpcSolid  = new G4Tubs("TPC", rInner, tpcRadius, halfH, 0, 360*deg);
     auto* tpcLogic  = new G4LogicalVolume(tpcSolid, fXenonGas, "TPC");
     fTpcPhys = new G4PVPlacement(nullptr, G4ThreeVector(0,0,0), 
                                     tpcLogic, "TPC", worldLogic, false, 0);
@@ -160,6 +243,17 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     G4VisAttributes* tpcVis = new G4VisAttributes(G4Colour(0.5,0.8,1.0,0.15));
     tpcVis->SetForceSolid(true);
     tpcLogic->SetVisAttributes(tpcVis);
+
+    if (hasCoating) {
+        auto* tpbSolid = new G4Tubs("TPB", tpbInnerRadius, rOuter / 2.0, halfH, 0, 360*deg);
+        fTpbLogical = new G4LogicalVolume(tpbSolid, fTpbMat, "TPB");
+        fTpbPhys = new G4PVPlacement(nullptr, G4ThreeVector(0,0,0),
+                                     fTpbLogical, "TPB", worldLogic, false, 0);
+
+        G4VisAttributes* tpbVis = new G4VisAttributes(G4Colour(0.95, 0.9, 0.3, 0.35));
+        tpbVis->SetForceSolid(true);
+        fTpbLogical->SetVisAttributes(tpbVis);
+    }
 
     const G4double sipmHalfXY = (kSiPMSize / 2.0) * mm;
     const G4double sipmHalfZ = (kSiPMThickness / 2.0) * mm;

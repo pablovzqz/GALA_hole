@@ -9,9 +9,9 @@ DetectorMessenger::DetectorMessenger(DetectorConstruction* det)
     fDir->SetGuidance("Detector control");
 
     fDicladModeCmd = new G4UIcmdWithAString("/detector/dicladMode", this);
-    fDicladModeCmd->SetGuidance("Set DICLAD optical mode: 'absorb' or 'reflect'");
+    fDicladModeCmd->SetGuidance("Set DICLAD optical mode: 'absorb', 'reflect' or 'TPB'");
     fDicladModeCmd->SetParameterName("mode", false);
-    fDicladModeCmd->SetCandidates("absorb reflect");
+    fDicladModeCmd->SetCandidates("absorb reflect TPB tpb");
     fDicladModeCmd->AvailableForStates(G4State_PreInit, G4State_Idle);
 }
 

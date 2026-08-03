@@ -33,6 +33,7 @@ PhysicsList::PhysicsList()
     optParams->SetProcessActivation("Scintillation", false); // we handle emission manually
     optParams->SetProcessActivation("Cerenkov",      false);
     optParams->SetProcessActivation("OpAbsorption",  true);
+    optParams->SetProcessActivation("OpWLS",         true);
     optParams->SetProcessActivation("OpBoundary",    true);
     optParams->SetProcessActivation("OpRayleigh",    false);
 }
