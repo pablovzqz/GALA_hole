@@ -87,7 +87,7 @@ void DetectorConstruction::SetDicladMode(const G4String& mode)
         std::vector<G4double> diffuse_vector = {1.0,  1.0,  1.0 };
 
         auto* tpbSurfaceMPT = new G4MaterialPropertiesTable();
-        tpbSurfaceMPT->AddProperty("REFLECTIVITY",          energies, reflectivity,   true);
+        tpbSurfaceMPT->AddProperty("REFLECTIVITY",          energies, zero_vector,   true);
         tpbSurfaceMPT->AddProperty("SPECULARSPIKECONSTANT", energies, zero_vector,    true);
         tpbSurfaceMPT->AddProperty("SPECULARLOBECONSTANT",  energies, zero_vector,    true);
         tpbSurfaceMPT->AddProperty("BACKSCATTERCONSTANT",   energies, zero_vector,    true);
@@ -224,15 +224,40 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
     tpcVis->SetForceSolid(true);
     tpcLogic->SetVisAttributes(tpcVis);
 
+    const G4double sipmHalfXY = (kSiPMSize / 2.0) * mm;
+    const G4double sipmHalfZ = (kSiPMThickness / 2.0) * mm;
+    const G4double sipmGap = 0.05 * mm;
+
+    auto* worldSiPM = new G4Box("SiPMWorld", sipmHalfXY, sipmHalfXY, sipmHalfZ);
+    fSiPMLogical = new G4LogicalVolume(worldSiPM, fSiPMMat, "SiPMLogical");
+    fSiPMPhys = new G4PVPlacement(
+        nullptr,
+        G4ThreeVector(0, 0, -halfH - sipmGap - sipmHalfZ),
+        fSiPMLogical,
+        "SiPM",
+        worldLogic,
+        false,
+        0);
+
+    G4VisAttributes* sipmVis = new G4VisAttributes(G4Colour(0.8,0.8,0.8,1.0));
+    sipmVis->SetForceSolid(false);
+    fSiPMLogical->SetVisAttributes(sipmVis);
+
     if (hasCoating) {
         auto* tpbSolid = new G4Tubs("TPB", tpbInnerRadius, rOuter / 2.0, halfH, 0, 360*deg);
         fTpbLogical = new G4LogicalVolume(tpbSolid, fTpbMat, "TPB");
         fTpbPhys = new G4PVPlacement(nullptr, G4ThreeVector(0,0,0),
-                                     fTpbLogical, "TPB", worldLogic, false, 0);
+                                     fTpbLogical, "TPB", worldLogic, false, 0, true);
+
+        auto* tpbSiPM = new G4Box("TPBSiPM", kSiPMSize/2.0 * mm, kSiPMSize/2.0 * mm, 24*um);
+        fTpbSiPMLogical = new G4LogicalVolume(tpbSiPM, fTpbMat, "TPBSiPM");
+        fTpbSiPMPhys = new G4PVPlacement(nullptr, G4ThreeVector(0, 0, -halfH - kSiPMThickness/2.0 * mm + 24*um/2.0),
+                                         fTpbSiPMLogical, "TPBSiPM", worldLogic, false, 0, true);
 
         G4VisAttributes* tpbVis = new G4VisAttributes(G4Colour(0.95, 0.9, 0.3, 0.35));
         tpbVis->SetForceSolid(true);
         fTpbLogical->SetVisAttributes(tpbVis);
+        fTpbSiPMLogical->SetVisAttributes(tpbVis);
 
         // ── FIX: build the TPB/TPC border surface here, now that both
         // physical volumes actually exist. This only needs a finish/
@@ -246,29 +271,14 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
 
         new G4LogicalBorderSurface("TPB_TPC_Boundary", fTpbPhys, fTpcPhys, tpbBoundary);
         new G4LogicalBorderSurface("TPC_TPB_Boundary", fTpcPhys, fTpbPhys, tpbBoundary);
-    }
 
-    const G4double sipmHalfXY = (kSiPMSize / 2.0) * mm;
-    const G4double sipmHalfZ = (kSiPMThickness / 2.0) * mm;
-    const G4double sipmGap = 0.05 * mm;
+        new G4LogicalBorderSurface("TPB_SiPM_Boundary", fTpbSiPMPhys, fSiPMPhys, tpbBoundary);
+        new G4LogicalBorderSurface("SiPM_TPB_Boundary", fSiPMPhys, fTpbSiPMPhys, tpbBoundary);  
+
+    }
 
     fWorldPhys = worldPhys;
     SetDicladMode(fDicladMode);   // now runs AFTER fDicladLogical/fTpbPhys/fDicladPhys are all valid
-
-    auto* worldSiPM = new G4Box("SiPMWorld", sipmHalfXY, sipmHalfXY, sipmHalfZ);
-    fSiPMLogical = new G4LogicalVolume(worldSiPM, fSiPMMat, "SiPMLogical");
-    new G4PVPlacement(
-        nullptr,
-        G4ThreeVector(0, 0, -halfH - sipmGap - sipmHalfZ),
-        fSiPMLogical,
-        "SiPM",
-        worldLogic,
-        false,
-        0);
-
-    G4VisAttributes* sipmVis = new G4VisAttributes(G4Colour(0.8,0.8,0.8,1.0));
-    sipmVis->SetForceSolid(true);
-    fSiPMLogical->SetVisAttributes(sipmVis);
 
     return worldPhys;
 }

@@ -31,11 +31,14 @@ private:
     void SetOpaqueOpticalProperties(G4Material* material, G4double absorptionLength);
 
     G4String fDicladMode = "absorb";           // modo por defecto
+
     G4VPhysicalVolume* fDicladPhys = nullptr;  // guardar para la superficie
     G4VPhysicalVolume* fTpcPhys    = nullptr;
     G4VPhysicalVolume* fTpbPhys    = nullptr;
     G4VPhysicalVolume* fSiPMPhys   = nullptr;
     G4VPhysicalVolume* fWorldPhys  = nullptr;  // guardar para SetDicladMode
+    G4VPhysicalVolume* fTpbSiPMPhys = nullptr;
+
     DetectorMessenger* fMessenger  = nullptr;
 
     G4Material* fXenonGas   = nullptr;
@@ -47,6 +50,7 @@ private:
     G4LogicalVolume* fSiPMLogical = nullptr;
     G4LogicalVolume* fDicladLogical = nullptr;
     G4LogicalVolume* fTpbLogical   = nullptr;
+    G4LogicalVolume* fTpbSiPMLogical = nullptr;
 
 };
 
