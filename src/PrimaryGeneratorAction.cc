@@ -49,7 +49,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
     const G4double emissionTimeSigma = longitudinalDiffusion / driftVelocity;
 
     // Gaussiana 2D centrada en el centro del agujero
-    G4double sigmaR = 0.8 * mm;
+    G4double sigmaR = 0.375 * mm;
     G4double x, y, r;
     do {
         x = G4RandGauss::shoot(0.0, sigmaR);
@@ -65,7 +65,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* event)
     G4double sigma = std::sqrt(std::max(0.0, fFanoFactor * electrons));
     G4double nElectrons = G4RandGauss::shoot(electrons, sigma);
 
-    const G4double meanPhotons = nElectrons * photons;
+    const G4double meanPhotons = nElectrons * photons * 0.68;
     G4double nPhotonsPerEvent = CLHEP::RandPoisson::shoot(meanPhotons);
     // G4double nPhotonsPerEvent = 1;
 

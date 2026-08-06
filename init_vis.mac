@@ -1,5 +1,5 @@
 /run/initialize
 /vis/verbose warnings
 /control/execute vis.mac
-/detector/dicladMode reflect
+/detector/dicladMode absorb
 /run/beamOn 0

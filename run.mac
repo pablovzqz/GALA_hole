@@ -1,5 +1,5 @@
 /run/initialize
 /run/verbose 
-/detector/dicladMode TPB
+/detector/dicladMode reflect
 
 /run/beamOn 1000

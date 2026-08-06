@@ -8,6 +8,6 @@
 /vis/scene/endOfEventAction accumulate
 /vis/modeling/trajectories/create/drawByParticleID
 /vis/modeling/trajectories/drawByParticleID-0/default/setDrawStepPts true
-/vis/modeling/trajectories/drawByParticleID-0/set opticalphoton cyan
+/vis/modeling/trajectories/drawByParticleID-0/set opticalphoton green
 /vis/scene/add/trajectories
 /vis/viewer/flush
