@@ -50,7 +50,7 @@ void DetectorConstruction::SetDicladMode(const G4String& mode)
         std::vector<G4double> energies = {6.0*eV, 7.08*eV, 10.0*eV};
         std::vector<G4double> rindex_diclad  = {1.41, 1.41, 1.41};
         std::vector<G4double> abslen_diclad  = {0.1*mm, 0.1*mm, 0.1*mm};
-        std::vector<G4double> reflectivity   = {0.68, 0.68, 0.68};
+        std::vector<G4double> reflectivity   = {0.55, 0.55, 0.55};
         std::vector<G4double> zero_vector    = {0.0,  0.0,  0.0 };
         std::vector<G4double> diffuse_vector = {1.0,  1.0,  1.0 };
 

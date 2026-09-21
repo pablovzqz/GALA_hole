@@ -7,7 +7,7 @@
 
 void RunAction::BeginOfRunAction(const G4Run* run)
 {
-	fOutput.open("geometric_hits_absorbentGALA_5mm_correctedRadius_1.8kVcmbar.txt");
+	fOutput.open("geometric_hits_reflectiveGALA_5mm_1.8kVcmbar_Kr_41.5keV_6mmSiPM.txt");
 	fOutput << "event_id\ttime_ns\tvx_mm\tvy_mm\tvz_mm\tnPhotons\n";
 
 	G4RunManager::GetRunManager()->SetPrintProgress(100);

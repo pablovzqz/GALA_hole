@@ -20,7 +20,7 @@ public:
 
     static constexpr G4double kGALAThickness  =   5.0; // mm (hole depth)
     static constexpr G4double kHoleDiameter   =   4.5; // mm
-    static constexpr G4double kSiPMSize       =   3.0; // mm (3x3 mm²)
+    static constexpr G4double kSiPMSize       =   6.0; // mm (3x3 mm²)
     static constexpr G4double kSiPMThickness  =   0.05; // mm
     static constexpr G4double kTpbThickness   =   1.0; // um
 
